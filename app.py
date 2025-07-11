@@ -1,1 +1,47 @@
-# Starter Python file
+
+import streamlit as st
+st.set_page_config(page_title="UoM Homogeneity & Clustering Explorer", layout="wide")
+st.sidebar.image("https://www.quantuniversity.com/assets/img/logo5.jpg")
+st.sidebar.divider()
+st.title("UoM Homogeneity & Clustering Explorer")
+st.divider()
+st.markdown("""
+In this lab, we explore the critical initial step in operational risk modeling: defining appropriate Units of Measure (UoMs) and grouping diverse operational risks into homogenous units. This application allows you to generate synthetic operational loss data and apply different clustering and grouping strategies, observing their impact on data homogeneity.
+
+The key objective is to understand how different UoM definitions affect the statistical homogeneity of the resulting data. Homogeneity is important for accurate risk modeling.
+
+We will explore the following concepts:
+
+*   **Units of Measure (UoMs):** Basic categories for collecting operational risk data.
+*   **Homogeneity:** The statistical similarity of loss data within a UoM.
+*   **Grouping Strategies:** Methods for combining raw UoMs into more homogenous groups.
+*   **Kolmogorov-Smirnov (KS) Test:** A statistical test to measure the similarity between two distributions.
+
+The application consists of three pages:
+
+*   **Data Generation:** Generates synthetic operational loss data with customizable characteristics.
+*   **UoM Grouping:** Allows you to select and apply UoM grouping strategies, including business knowledge-based grouping.
+*   **Homogeneity Assessment:** Visualizes the statistical homogeneity of grouped UoMs using the Kolmogorov-Smirnov (KS) test and empirical Cumulative Distribution Functions (CDFs).
+
+The application is based on concepts from the PRMIA Operational Risk Manager Handbook [1]. It highlights the trade-offs between practical grouping rules and statistical homogeneity.
+
+**Formulae:**
+
+The KS D-statistic ($D$) between two empirical distributions $F_n(x)$ and $F(x)$ is defined as:
+$$ D = \sup_x |F_n(x) - F(x)| $$
+The handbook also references a scaled version for distance $d_{ij}$ between two UoMs $i$ and $j$ with sample sizes $n_i$ and $n_j$ and empirical CDFs $F_i(x)$ and $F_j(x)$:
+$$ \displaystyle d_{ij}=\frac{n_i n_j}{n_i+n_j}\sup_X |F_i(x)-F_j(x)| $$
+The Python function computes the unscaled $D$-statistic.
+""")
+# Your code starts here
+page = st.sidebar.selectbox(label="Navigation", options=["Data Generation", "UoM Grouping", "Homogeneity Assessment"])
+if page == "Data Generation":
+    from application_pages.data_generation import run_data_generation
+    run_data_generation()
+elif page == "UoM Grouping":
+    from application_pages.uom_grouping import run_uom_grouping
+    run_uom_grouping()
+elif page == "Homogeneity Assessment":
+    from application_pages.homogeneity_assessment import run_homogeneity_assessment
+    run_homogeneity_assessment()
+# Your code ends
