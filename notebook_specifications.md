@@ -191,4 +191,3 @@ All major steps within the notebook will include both concise markdown narrative
 ## References
 
 [1] Jonathan Howitt (Editor), *PRMIA Operational Risk Manager Handbook*, The Professional Risk Managers' International Association, Updated November 2015.
-```
