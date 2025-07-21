@@ -69,86 +69,166 @@ def create_ks_distance_matrix(data):
             ks_matrix[j, i] = distance # Symmetric matrix
     return pd.DataFrame(ks_matrix, index=[f"UoM {uid}" for uid in uom_ids], columns=[f"UoM {uid}" for uid in uom_ids])
 
-
 def run_uom_grouping():
+    # ---------- Page title ----------
     st.header("UoM Grouping Strategy")
-    st.markdown("""
-    Select a strategy to group the raw Units of Measure (UoMs) into potentially more homogenous units.
-    The goal is to reduce internal variability within each group.
+
+    st.markdown(r"""
+    **Purpose of this page**
+
+    In operational‑risk models we often collect loss data under many *Units of Measure (UoMs)*.  
+    Unfortunately, some UoMs have very few observations, while others mix several risk drivers.
+    Grouping them can reduce noise and create cleaner, more stable loss distributions.
+
+    Below you will:
+
+    1. Select a *grouping strategy* (business logic, statistical clustering, or a hybrid).
+    2. Inspect how your choice changes the UoM labels.
+    3. Visualize similarity across raw UoMs with a Kolmogorov–Smirnov (KS) distance heat‑map.
     """)
 
+    # ---------- Guard clause ----------
     if 'synthetic_data' not in st.session_state:
-        st.info("Please generate synthetic data on the 'Data Generation' page first.")
+        st.info("Please generate synthetic data on the **Data Generation** page first.")
         return
 
-    synthetic_data = st.session_state['synthetic_data'].copy() # Work with a copy
+    synthetic_data = st.session_state['synthetic_data'].copy()  # safety copy
 
-    st.sidebar.subheader("UoM Grouping Strategy")
+    # ---------- Sidebar controls ----------
+    st.sidebar.subheader("Step 1 – Choose a grouping strategy")
     grouping_strategy = st.sidebar.radio(
-        "Strategy Selection",
-        options=["No Grouping (Raw UoMs)", "Business Knowledge Grouping", "Statistical Clustering (K-means) (Future)", "Combined Approach (Future)"],
-        help="Choose how raw UoMs should be grouped into homogenous units."
+        "Strategy",
+        options=[
+            "No Grouping (Raw UoMs)",
+            "Business Knowledge Grouping",
+            "Statistical Clustering (K‑means) (Coming Soon)",
+            "Combined Approach (Coming Soon)"
+        ],
+        help="How should raw UoMs be merged into more homogeneous groups?"
     )
 
-    grouped_data = synthetic_data.copy() # Initialize with no grouping
+    grouped_data = synthetic_data.copy()  # default: no grouping
 
+    # ---------- Strategy: none ----------
     if grouping_strategy == "No Grouping (Raw UoMs)":
         grouped_data['grouped_uom_id'] = grouped_data['uom_id']
-        st.info("Currently displaying raw UoMs without any grouping.")
+        st.success("Showing raw UoMs with **no** grouping. "
+                   "Use this as a baseline for comparison.")
+
+    # ---------- Strategy: business rules ----------
     elif grouping_strategy == "Business Knowledge Grouping":
-        event_types_to_group = st.sidebar.multiselect(
-            "Event Types to Group",
-            options=['Fraud', 'Error', 'System Failure'],
-            default=['Fraud', 'Error'],
-            help="Select event types to combine into a single grouped UoM, based on business rules."
-        )
-        grouped_data = group_uoms_by_business_knowledge(synthetic_data, event_types_to_group)
-        st.info(f"Grouping based on business knowledge. Selected event types: {', '.join(event_types_to_group)}")
-        if 9999 in grouped_data['grouped_uom_id'].unique():
-            st.markdown(r"Note: Event types selected for grouping have been assigned to 'Group 9999'. Other UoMs retain their original IDs.")
+        st.sidebar.markdown("""
+        **Step 2 – Pick event types to combine**
 
-    elif grouping_strategy == "Statistical Clustering (K-means) (Future)":
-        st.sidebar.slider("Number of Clusters (K)", min_value=2, max_value=len(synthetic_data['uom_id'].unique()), value=3,
-                            help="Specify the desired number of clusters for the K-means algorithm, based on KS distance.")
-        st.warning("Statistical Clustering (K-means) is a future enhancement and not yet implemented. It would group UoMs based on KS distances.")
-        grouped_data['grouped_uom_id'] = grouped_data['uom_id'] # Revert to no grouping for now
-    elif grouping_strategy == "Combined Approach (Future)":
-        st.sidebar.checkbox("Apply Business Override (e.g., specific event types)", help="Combine business knowledge with statistical clustering, e.g., by adjusting KS distances for specific business categories.")
-        st.warning("Combined Approach is a future enhancement and not yet implemented. It would allow combining business rules with statistical clustering.")
-        st.markdown(r"""
-        For instance, a combined approach might adjust KS distances $\tilde{{d}}_{{ij}}$ as follows:
-        $$ \tilde{{d}}_{{ij}} = \begin{{cases}} \frac{{1}}{{2}}d_{{ij}} & \text{{if units }} i \text{{ and }} j \text{{ are DPA}} \\ d_{{ij}} & \text{{otherwise}} \end{{cases}} $$
+        When your domain experts know that certain loss events share a common root cause,
+        you can force them into one bucket regardless of statistical distance.
         """)
-        grouped_data['grouped_uom_id'] = grouped_data['uom_id'] # Revert to no grouping for now
+        event_types_to_group = st.sidebar.multiselect(
+            "Event types to merge",
+            options=['Fraud', 'Error', 'System Failure'],
+            default=['Fraud', 'Error']
+        )
 
-    st.subheader("Grouped Data Sample")
+        grouped_data = group_uoms_by_business_knowledge(
+            synthetic_data,
+            event_types_to_group
+        )
+
+        st.info(
+            f"Business override in action. "
+            f"The selected event types **{', '.join(event_types_to_group)}** are now labelled "
+            f"`grouped_uom_id = 9999` so they can be analysed as one unit."
+        )
+
+    # ---------- Strategy: future statistical clustering ----------
+    elif grouping_strategy.startswith("Statistical Clustering"):
+        st.sidebar.slider(
+            "Desired number of clusters (K)",
+            min_value=2,
+            max_value=len(synthetic_data['uom_id'].unique()),
+            value=3
+        )
+        st.warning(
+            "Statistical clustering will group UoMs that *look* alike statistically "
+            "using KS distance as the similarity metric. "
+            "This feature is not yet implemented."
+        )
+        grouped_data['grouped_uom_id'] = grouped_data['uom_id']  # no change yet
+
+    # ---------- Strategy: future combined approach ----------
+    elif grouping_strategy.startswith("Combined Approach"):
+        st.sidebar.checkbox(
+            "Apply business override inside clustering",
+            help="Example: halve the KS distance for predefined categories so they are more likely to cluster."
+        )
+        st.warning(
+            "The combined approach will let you blend domain knowledge with clustering by "
+            "adjusting distances before running K‑means. Not implemented yet."
+        )
+
+        st.markdown(r"""
+        **Illustration of a distance adjustment**
+
+        $$\tilde{d}_{ij} =
+        \begin{cases}
+        \frac{1}{2}\, d_{ij} & \text{if both units belong to the predefined DPA category} \\
+        d_{ij} & \text{otherwise}
+        \end{cases}$$
+
+        Cutting the distance in half makes the algorithm treat these pairs as *closer*,
+        increasing the chance they fall into the same cluster.
+        """)
+        grouped_data['grouped_uom_id'] = grouped_data['uom_id']  # no change yet
+
+    # ---------- Show grouped data ----------
+    st.subheader("Preview of grouped data")
+    st.markdown("""
+    The table below shows the first few rows after applying your chosen strategy.
+    Use it to verify that IDs changed as expected.
+    """)
     st.dataframe(grouped_data.head())
-    st.write("Counts of Grouped UoM IDs:")
+
+    st.markdown("""
+    **Count of observations per `grouped_uom_id`**  
+    A jump in the count for ID 9999 confirms that several raw UoMs were merged.
+    """)
     st.write(grouped_data['grouped_uom_id'].value_counts().sort_index())
 
-    st.session_state['grouped_data'] = grouped_data # Store the (potentially) grouped data
+    st.session_state['grouped_data'] = grouped_data  # store result
 
-    st.subheader("Kolmogorov-Smirnov Distance Matrix Between Raw UoMs")
-    st.markdown("""
-    This heatmap visualizes the Kolmogorov-Smirnov distances between all pairs of initial raw UoMs.
-    A smaller distance (closer to 0, darker color) indicates greater similarity between the distributions of loss amounts for those UoMs.
+    # ---------- KS distance heat‑map ----------
+    st.subheader("Similarity between raw UoMs (KS distance)")
+    st.markdown(r"""
+    The **Kolmogorov–Smirnov distance** $d_{ij}$ measures the maximum vertical
+    gap between the cumulative distribution functions of two loss samples.
+    * Smaller values (darker squares) mean the two UoMs have similar loss behaviour.
+    * Larger values (lighter squares) suggest the loss patterns differ.
+
+    **How to read the heat‑map**
+
+    * The matrix is symmetric.  
+    * Zeros on the diagonal indicate each UoM compared with itself.  
+    * Dark clusters imply candidates for grouping if you are following a data‑driven approach.
     """)
     try:
-        if not synthetic_data.empty:
-            ks_dist_matrix = create_ks_distance_matrix(synthetic_data)
-            fig = px.imshow(ks_dist_matrix,
-                            text_auto=".2f",
-                            labels=dict(x="UoM ID", y="UoM ID", color="KS Distance"),
-                            x=ks_dist_matrix.columns,
-                            y=ks_dist_matrix.index,
-                            color_continuous_scale=px.colors.sequential.Viridis_r) # Reverse Viridis for darker=closer to 0
-            fig.update_layout(title_text='Kolmogorov-Smirnov Distance Matrix Between Raw UoMs', font=dict(size=12))
-            fig.update_xaxes(side="top")
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No synthetic data available to compute KS distance matrix.")
+        ks_dist_matrix = create_ks_distance_matrix(synthetic_data)
+        fig = px.imshow(
+            ks_dist_matrix,
+            text_auto=".2f",
+            labels=dict(x="UoM ID", y="UoM ID", color="KS distance"),
+            x=ks_dist_matrix.columns,
+            y=ks_dist_matrix.index,
+            color_continuous_scale=px.colors.sequential.Viridis_r
+        )
+        fig.update_layout(
+            title_text="Kolmogorov–Smirnov Distance Matrix (raw UoMs)",
+            font=dict(size=12)
+        )
+        fig.update_xaxes(side="top")
+        st.plotly_chart(fig, use_container_width=True)
+
     except Exception as e:
-        st.error(f"Error computing or displaying KS distance matrix: {e}")
+        st.error(f"Could not compute or display KS matrix: {e}")
 
 if __name__ == "__main__":
     run_uom_grouping()

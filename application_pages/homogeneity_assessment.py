@@ -103,34 +103,76 @@ def plot_cdfs(data, grouped_uom_id_col='grouped_uom_id'):
                       hovermode='x unified',
                       font=dict(size=12))  # Ensure font size >= 12 pt
     return fig
-
 def run_homogeneity_assessment():
+    # ---------- Page title ----------
     st.header("Homogeneity Assessment")
-    st.markdown("""
-    This page assesses the homogeneity of the grouped Units of Measure (UoMs) based on the chosen grouping strategy.
-    The Kolmogorov-Smirnov (KS) test is used to evaluate the statistical similarity within each group.
-    Empirical Cumulative Distribution Functions (CDFs) are plotted to visualize the loss distributions.
+
+    st.markdown(r"""
+    **What does “homogeneity” mean here?**
+
+    After grouping Units of Measure (UoMs) you want every loss inside a group to
+    “look” as if it came from the same distribution.  
+    We check this in two complementary ways:
+
+    * **Kolmogorov–Smirnov (KS) test** – a formal test that compares your data with a normal reference built from the sample mean and standard deviation.  
+      A smaller KS statistic hints the group behaves like one coherent population.
+    * **Empirical Cumulative Distribution Functions (ECDFs)** – visual evidence.  
+      If the ECDFs of raw UoMs in the same group overlap closely, the grouping is working.
+
+    Use the table first for a quick numeric check, then scan the ECDF plot for patterns that numbers alone may miss.
     """)
 
+    # ---------- Guard clause ----------
     if 'grouped_data' not in st.session_state:
-        st.info("Please generate synthetic data on the 'Data Generation' page and group UoMs on the 'UoM Grouping' page first.")
+        st.info(
+            "Please generate synthetic data on the **Data Generation** page and group UoMs "
+            "on the **UoM Grouping** page first."
+        )
         return
 
     grouped_data = st.session_state['grouped_data']
 
-    st.subheader("Homogeneity Assessment Table")
+    # ---------- KS table ----------
+    st.subheader("1. KS statistics by group")
+    st.markdown(r"""
+    *Each row shows the KS statistic for one `grouped_uom_id`.*
+
+    * **Rule of thumb:**  
+      KS < 0.1 → very homogeneous  
+      0.1 ≤ KS < 0.2 → acceptable  
+      KS ≥ 0.2 → investigate outliers or consider re‑grouping
+    """)
     try:
         homogeneity_results = assess_homogeneity(grouped_data)
         if homogeneity_results:
-            homogeneity_df = pd.DataFrame.from_dict(homogeneity_results, orient='index', columns=['KS Statistic'])
-            st.dataframe(homogeneity_df)
-            st.markdown("A lower KS statistic (closer to 0) indicates greater homogeneity/similarity to the reference distribution.")
+            ks_df = (
+                pd.DataFrame.from_dict(
+                    homogeneity_results,
+                    orient="index",
+                    columns=["KS statistic"]
+                )
+                .sort_index()
+            )
+            st.dataframe(ks_df)
         else:
-            st.info("Not enough data to perform homogeneity assessment. Ensure each group has at least 2 loss events.")
+            st.info(
+                "Not enough observations in some groups. "
+                "Each group must have at least two loss events for the KS test."
+            )
     except Exception as e:
         st.error(f"Error during homogeneity assessment: {e}")
 
-    st.subheader("Empirical CDFs of Losses per Grouped UoM")
+    # ---------- ECDF plot ----------
+    st.subheader("2. Overlay of ECDFs inside each group")
+    st.markdown(r"""
+    *How to read this plot*
+
+    * Lines of the **same colour family** belong to the same `grouped_uom_id`.
+    * Tight, overlapping lines → raw UoMs share similar loss patterns.  
+    * Widely separated lines → the group may still mix distinct risks.
+
+    Hover to see exact UoM and CDF values.
+    """)
     try:
         fig = plot_cdfs(grouped_data)
         st.plotly_chart(fig, use_container_width=True)
