@@ -1,9 +1,9 @@
 
 import streamlit as st
-st.set_page_config(page_title="UoM Homogeneity & Clustering Explorer", layout="wide")
+st.set_page_config(page_title="QuLab: UoM Homogeneity & Clustering Explorer", layout="wide")
 st.sidebar.image("https://www.quantuniversity.com/assets/img/logo5.jpg")
 st.sidebar.divider()
-st.title("UoM Homogeneity & Clustering Explorer")
+st.title("QuLab: UoM Homogeneity & Clustering Explorer")
 st.divider()
 st.markdown(r"""
 In this lab, we explore the critical initial step in operational risk modeling: defining appropriate Units of Measure (UoMs) and grouping diverse operational risks into homogenous units. This application allows you to generate synthetic operational loss data and apply different clustering and grouping strategies, observing their impact on data homogeneity.
