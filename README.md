@@ -144,10 +144,3 @@ Please ensure your code adheres to standard Python best practices and includes a
 ## License
 
 This project is licensed under the MIT License - see the `LICENSE` file for details (though not explicitly provided, this is a common open-source license).
-
-## Contact
-
-For any questions or inquiries, please contact:
-
-*   **Email**: [your.email@example.com](mailto:your.email@example.com)
-*   **GitHub**: [github.com/yourusername](https://github.com/yourusername) (Replace with your actual GitHub profile or project link)
